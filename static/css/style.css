@@ -1,0 +1,23 @@
+*{margin: 0; padding: 0; box-sizing: border-box;}
+
+#users{
+    margin: 4em;
+}
+
+a{
+    text-decoration: none;
+    background-color: blueviolet;
+    padding: 1em;
+    font-weight: bold;
+    color: #fff;
+}
+
+a:hover{
+    color: coral;
+}
+
+#container{
+    width: 50%;
+    margin: 2rem 0 auto;
+
+}
