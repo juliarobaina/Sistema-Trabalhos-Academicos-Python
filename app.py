@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 from flask_mysqldb import MySQL
 import bcrypt #poderia ter usado o Flask-Bcrypt
 
+#criando uma instância do Flask, __name__ pega o nome do arquivo ou pacote para que o flask saiba o local dos arquivos, valor padrão de __name__ é main
 app = Flask(__name__)
 
 #configuraão do BD
@@ -50,6 +51,9 @@ def gerarSenha(senha):
     #obtendo o hash da senha. bcrypt.gensalt tem um custo padrão de 10. Quanto maior o valor, maior será o custo e o tempo para gerar o hash
     hashed = bcrypt.hashpw(senha, bcrypt.gensalt())
     return hashed
+
+#encriptando a comunicação das sessions entre o cliente e o servidor
+app.secret_key = gerarSenha("teste")
 
 #Index
 @app.route("/")
@@ -107,7 +111,7 @@ def alterarUsuario():
 
     if request.method == 'POST':
        # idUsuario = request.form["idUsuario"]
-        nome = request.form["nome"].strip()
+        nome = request.form["nome"].strip() #strip, remove os espaços em branco do início e fim da string
         email = request.form["email"].replace(' ', '')
         idUsuario = 24
 
@@ -126,7 +130,8 @@ def alterarUsuario():
             if(usuariosComMesmoEmail(dados, email, idUsuario)):
                 return redirect(url_for('alterar'))
 
-            val = (nome,email, idUsuario)
+            #tupla com os valores do usuário
+            val = (nome, email, idUsuario)
             db.execute("UPDATE usuarios SET nome = %s, email = %s WHERE id = %s", val)
 
             mysql.connection.commit()
@@ -141,7 +146,9 @@ def alterarUsuario():
 #Página login usuário
 @app.route("/login")
 def login():
+    
     return render_template("login.html")
+
 
 #Logar o usuário
 @app.route("/loginUsuario", methods = ["POST"])
@@ -157,22 +164,39 @@ def loginUsuario():
         db = mysql.connection.cursor()
 
         db.execute("SELECT * FROM usuarios")
-
+        
         dados = db.fetchall()
-
-        for k in range(len(dados)):
-            if email in dados[k]:
+        
+        for i in range(len(dados)):
+            if email in dados[i]:
                 #para ficar em bytes. str -> bytes
-                senhaEncode = dados[k][3].encode("utf-8")
+                senhaEncode = dados[i][3].encode("utf-8")
                 if bcrypt.checkpw(novaSenha,senhaEncode):#as senhas correspondem. Acesso permitido
-                    print(f"=valor={dados[k]}  == {dados[k][3]}")
-            
-            
-        return redirect(url_for('login'))
+                    session["nome"] = dados[i][1] #criando e inicializando a session nome
+                    return redirect(url_for('meuPainel'))
 
+#Página inicial do perfil de cada usuário
+@app.route('/meupainel')
+def meuPainel():
+    
+    usuario = None
+  
+    if "nome" in session: #verifica se existe a session nome
+        return render_template("meupainel.html", usuario = session["nome"]) #retorna o valor da session para a página login.html através do parâmetro usuario
+    #lembrete: fazer session id
 
+#Sair da conta do usuário
+@app.route('/logout')
+def logout():
+    
+    session.pop('nome', None)
+    '''
+        session.pop('nome', None) remove a session 'nome' do dicionário de sessions. O pop('nome', None) indica que se o 1º parâmetro chave não 
+        estiver no dicionário e não existir um 2º parâmetro, um KeyError será criado. Caso exista o 2º parâmetro, esse será retornado 
+        impedindo que um KeyError seja criado, porém o conteúdo da session do 1º parâmetro continuará a existir.
+    '''
 
-
+    return redirect(url_for('index'))
 
 
 if __name__ == '__main__':
